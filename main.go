@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
+	"github.com/natefinch/lumberjack"
 	"github.com/russross/blackfriday/v2"
 	"github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
@@ -52,12 +52,12 @@ func main() {
 		logrus.WithError(err).Fatal("Fatal to read config file")
 	}
 
-	// logrus.SetOutput(&lumberjack.Logger{
-	// 	Filename:   "/var/log/ossmark.log",
-	// 	MaxSize:    32, // in MB
-	// 	MaxBackups: 10,
-	// 	Compress:   true,
-	// })
+	logrus.SetOutput(&lumberjack.Logger{
+		Filename:   "/var/log/ossmark.log",
+		MaxSize:    32, // in MB
+		MaxBackups: 10,
+		Compress:   true,
+	})
 
 	articleListTmpl, err := template.New("article_list").Parse(articleListTemplate)
 	if err != nil {
@@ -78,13 +78,15 @@ func main() {
 
 		months := make(map[string]monthArticleList)
 		listObjects(b, func(obj *oss.ObjectProperties) error {
+			modifyTm := obj.LastModified.Format("2006/01/02 15:04:05")
 			month := obj.LastModified.Format("2006/01")
+
 			m := months[month]
 			m.Month = month
 			m.Articles = append(m.Articles, article{
-				Path:       path.Join("articles", obj.Key),
-				Name:       path.Base(obj.Key),
-				LastModify: obj.LastModified.Format(time.RFC3339),
+				Link:       fmt.Sprintf("%s?modify_tm=%s", path.Join("articles", obj.Key), modifyTm),
+				Name:       strings.TrimSuffix(path.Base(obj.Key), ".md"),
+				LastModify: modifyTm,
 			})
 			months[m.Month] = m
 			return nil
@@ -106,6 +108,8 @@ func main() {
 			w.Write([]byte(err.Error()))
 			return
 		}
+		s1, _, _ := strings.Cut(key, "?")
+		key = s1
 
 		reader, err := b.GetObject(key)
 		if err != nil {
@@ -124,7 +128,11 @@ func main() {
 			return
 		}
 		output := blackfriday.Run(content, blackfriday.WithExtensions(blackfriday.CommonExtensions))
-		err = articleContentTmpl.Execute(w, articleContentBody{Title: path.Base(key), Content: string(output)})
+		err = articleContentTmpl.Execute(w, articleContentBody{
+			Title:    strings.TrimSuffix(path.Base(key), ".md"),
+			Content:  string(output),
+			ModifyTm: r.URL.Query().Get("modify_tm"),
+		})
 		if err != nil {
 			w.Write([]byte(err.Error()))
 			return

@@ -14,7 +14,8 @@ const articleContentTemplate = `
 	<script>hljs.highlightAll();</script>
 	<style>
 		body {
-			font-family: Arial, sans-serif;
+			font-family: Monaco, Monaco, 'Courier New', monospace;
+			font-size: 14.5px;
 			max-width: 900px;
 			margin: 0 auto;
 			padding: 20px;
@@ -38,6 +39,8 @@ const articleContentTemplate = `
 <body>
 	<h1>{{.Title}}</h1>
 
+	<em style="font-size: 12px;">{{.ModifyTm}}</em>
+
 	{{.Content}}
 
 </body>
@@ -46,6 +49,7 @@ const articleContentTemplate = `
 `
 
 type articleContentBody struct {
-	Title   string
-	Content string
+	Title    string
+	Content  string
+	ModifyTm string
 }

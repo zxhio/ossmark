@@ -40,7 +40,7 @@ const articleListTemplate = `
     <div class="date-header">{{$month.Month}}</div>
 	<ul class="file-list">
 	{{- range $index, $article := .Articles }}
-		<li><a href="{{$article.Path}}">{{$article.Name}} -- {{$article.LastModify}}</a></li>
+		<li><a href="{{$article.Link}}">{{$article.Name}} -- {{$article.LastModify}}</a></li>
 	{{- end }}
 	</ul>
 </div>
@@ -51,7 +51,7 @@ const articleListTemplate = `
 `
 
 type article struct {
-	Path       string
+	Link       string
 	Name       string
 	LastModify string
 }
