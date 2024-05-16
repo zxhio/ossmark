@@ -4,7 +4,7 @@ Description=mux
 [Service]
 Type=simple
 WorkingDirectory=
-ExecStart=/usr/local/bin/ossmark
+ExecStart=/usr/local/bin/ossmark --article
 Restart=always
 RestartSec=10s
 KillMode=process

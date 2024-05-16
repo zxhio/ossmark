@@ -1,5 +1,9 @@
 package main
 
+import (
+	"html/template"
+)
+
 const articleListTemplate = `
 <!DOCTYPE html>
 <html lang="en">
@@ -40,7 +44,7 @@ const articleListTemplate = `
     <div class="date-header">{{$month.Month}}</div>
 	<ul class="file-list">
 	{{- range $index, $article := .Articles }}
-		<li><a href="{{$article.Link}}">{{$article.Name}} -- {{$article.LastModify}}</a></li>
+		<li><a href="{{$article.Link}}">{{$article.Name}}</a> <em style="font-size: 12px;"> -- {{$article.LastModify}}</em> </li>
 	{{- end }}
 	</ul>
 </div>
@@ -49,6 +53,16 @@ const articleListTemplate = `
 </body>
 </html>
 `
+
+var ArticleListTmpl *template.Template
+
+func init() {
+	var err error
+	ArticleListTmpl, err = template.New("article_list").Parse(articleListTemplate)
+	if err != nil {
+		panic(err)
+	}
+}
 
 type article struct {
 	Link       string

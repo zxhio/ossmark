@@ -1,5 +1,9 @@
 package main
 
+import (
+	"html/template"
+)
+
 const articleContentTemplate = `
 <!DOCTYPE html>
 <html lang="en">
@@ -47,6 +51,16 @@ const articleContentTemplate = `
 
 </html>
 `
+
+var ArticleContentTmpl *template.Template
+
+func init() {
+	var err error
+	ArticleContentTmpl, err = template.New("article_content").Parse(articleContentTemplate)
+	if err != nil {
+		panic(err)
+	}
+}
 
 type articleContentBody struct {
 	Title    string

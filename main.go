@@ -3,19 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net"
-	"net/http"
-	"net/url"
 	"os"
-	"path"
-	"sort"
-	"strings"
-	"text/template"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/natefinch/lumberjack"
-	"github.com/russross/blackfriday/v2"
 	"github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 )
@@ -30,26 +21,60 @@ type Config struct {
 	BucketName      string `json:"bucket_name"`
 	SkipObjectRegex string `json:"skip_object_regex"`
 	ListenPort      int    `json:"listen_port"`
+	WorkDir         string `json:"work_dir"`
 }
 
-func readAndParseConfig(confPath string) (*Config, error) {
+var (
+	Conf Config
+)
+
+func readAndParseConfig(confPath string) error {
 	content, err := os.ReadFile(confPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var c Config
-	err = json.Unmarshal(content, &c)
-	return &c, err
+	return json.Unmarshal(content, &Conf)
 }
 
+type syncFlag struct {
+	set   bool
+	value string
+}
+
+func (f *syncFlag) String() string { return f.value }
+func (f *syncFlag) Set(s string) error {
+	f.value = s
+	f.set = true
+	return nil
+}
+func (f *syncFlag) Type() string { return "bool|string" }
+
 func main() {
-	confPath := flag.StringP("conf", "c", "/etc/ossmark.json", "config path")
+	var sf syncFlag
+	f := flag.CommandLine.VarPF(&sf, "sync", "", "sync bucket base on [time|local|remote], default 'time'")
+	f.NoOptDefVal = ""
+
+	confPath := flag.String("conf", "/etc/ossmark.json", "config path")
+	enableArticle := flag.Bool("article", false, "start a server to show article")
 	flag.Parse()
 
-	conf, err := readAndParseConfig(*confPath)
+	err := readAndParseConfig(*confPath)
 	if err != nil {
 		logrus.WithError(err).Fatal("Fatal to read config file")
+	}
+	logrus.SetLevel(logrus.DebugLevel)
+
+	b, err := newBucket(&Conf.AccessKey, Conf.BucketName, "oss-cn-hangzhou")
+	if err != nil {
+		logrus.WithError(err).Fatal("Fatal to new bucket client")
+	}
+
+	if sf.set {
+		err = sync(b, Conf.WorkDir, sf.value)
+		if err != nil {
+			logrus.WithError(err).Fatal("Fatal to sync bucket")
+		}
+		return
 	}
 
 	logrus.SetOutput(&lumberjack.Logger{
@@ -58,97 +83,9 @@ func main() {
 		MaxBackups: 10,
 		Compress:   true,
 	})
-
-	articleListTmpl, err := template.New("article_list").Parse(articleListTemplate)
-	if err != nil {
-		logrus.WithError(err).Fatal("Fail to new article_list template")
+	if *enableArticle {
+		serve(b)
 	}
-	articleContentTmpl, err := template.New("article_content").Parse(articleContentTemplate)
-	if err != nil {
-		logrus.WithError(err).Fatal("Fail to new article_content template")
-	}
-
-	b, err := newBucket(&conf.AccessKey, conf.BucketName, "oss-cn-hangzhou")
-	if err != nil {
-		logrus.WithError(err).Fatal("Fatal to new bucket client")
-	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		logrus.WithFields(logrus.Fields{"addr": r.RemoteAddr, "url": r.URL}).Info("New connection")
-
-		months := make(map[string]monthArticleList)
-		listObjects(b, func(obj *oss.ObjectProperties) error {
-			modifyTm := obj.LastModified.Format("2006/01/02 15:04:05")
-			month := obj.LastModified.Format("2006/01")
-
-			m := months[month]
-			m.Month = month
-			m.Articles = append(m.Articles, article{
-				Link:       fmt.Sprintf("%s?modify_tm=%s", path.Join("articles", obj.Key), modifyTm),
-				Name:       strings.TrimSuffix(path.Base(obj.Key), ".md"),
-				LastModify: modifyTm,
-			})
-			months[m.Month] = m
-			return nil
-		})
-		list := make([]monthArticleList, len(months))
-		for _, v := range months {
-			list = append(list, v)
-		}
-		sort.Sort(monthArticles(list))
-		articleListTmpl.Execute(w, articleListBody{MonthArticles: list})
-	})
-
-	http.HandleFunc("/articles/", func(w http.ResponseWriter, r *http.Request) {
-		logrus.WithFields(logrus.Fields{"addr": r.RemoteAddr, "url": r.URL}).Info("New connection")
-
-		key := strings.TrimPrefix(r.URL.String(), "/articles/")
-		key, err := url.QueryUnescape(key)
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-		s1, _, _ := strings.Cut(key, "?")
-		key = s1
-
-		reader, err := b.GetObject(key)
-		if err != nil {
-			if strings.Contains(err.Error(), "NoSuchKey") {
-				w.Write([]byte("No such article\n"))
-			} else {
-				w.Write([]byte(err.Error()))
-			}
-			return
-		}
-		defer reader.Close()
-
-		content, err := io.ReadAll(reader)
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-		output := blackfriday.Run(content, blackfriday.WithExtensions(blackfriday.CommonExtensions))
-		err = articleContentTmpl.Execute(w, articleContentBody{
-			Title:    strings.TrimSuffix(path.Base(key), ".md"),
-			Content:  string(output),
-			ModifyTm: r.URL.Query().Get("modify_tm"),
-		})
-		if err != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-	})
-
-	if conf.ListenPort == 0 {
-		conf.ListenPort = 9991
-	}
-	l, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", conf.ListenPort))
-	if err != nil {
-		logrus.WithError(err).Fatal("Fatal to net.Listen")
-	}
-	logrus.WithField("addr", l.Addr()).Info("Listen on")
-
-	http.Serve(l, nil)
 }
 
 type ObjectHandler func(obj *oss.ObjectProperties) error
