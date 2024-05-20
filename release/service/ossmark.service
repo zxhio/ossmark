@@ -1,0 +1,15 @@
+[Unit]
+Description=ossmark
+
+[Service]
+Type=simple
+WorkingDirectory=TODO_OSSMARK_DIR
+ExecStart=TODO_OSSMARK_DIR/bin/ossmark --article
+User=TODO_OSSMARK_USER
+Group=TODO_OSSMARK_GROUP
+Restart=always
+RestartSec=10s
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

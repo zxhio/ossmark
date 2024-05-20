@@ -54,7 +54,7 @@ func main() {
 	f := flag.CommandLine.VarPF(&sf, "sync", "", "sync bucket base on [time|local|remote], default 'time'")
 	f.NoOptDefVal = ""
 
-	confPath := flag.String("conf", "/etc/ossmark.json", "config path")
+	confPath := flag.String("conf", "conf/ossmark.json", "config path")
 	enableArticle := flag.Bool("article", false, "start a server to show article")
 	flag.Parse()
 
