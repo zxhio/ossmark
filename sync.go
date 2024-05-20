@@ -31,7 +31,7 @@ func sync(b *oss.Bucket, dir, mode string) error {
 		if err != nil {
 			return err
 		}
-		workdir = path.Join(workdir, ".ossmark", b.BucketName)
+		workdir = path.Join(workdir, ".ossmark-data", b.BucketName)
 	} else {
 		workdir = dir
 	}

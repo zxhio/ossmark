@@ -23,13 +23,17 @@ func serve(b *oss.Bucket) {
 
 		months := make(map[string]monthArticleList)
 		listObjects(b, func(obj *oss.ObjectProperties) error {
+			if strings.HasSuffix(obj.Key, "/") {
+				return nil
+			}
+
 			modifyTm := obj.LastModified.Format("2006/01/02 15:04:05")
 			month := obj.LastModified.Format("2006/01")
 
 			m := months[month]
 			m.Month = month
 			m.Articles = append(m.Articles, article{
-				Link:       fmt.Sprintf("%s?modify_tm=%s", path.Join("articles", obj.Key), modifyTm),
+				Link:       fmt.Sprintf("%s?modify_tm=%s", path.Join("articles", obj.Key), url.QueryEscape(modifyTm)),
 				Name:       strings.TrimSuffix(path.Base(obj.Key), ".md"),
 				LastModify: modifyTm,
 			})
@@ -48,7 +52,7 @@ func serve(b *oss.Bucket) {
 		logrus.WithFields(logrus.Fields{"addr": r.RemoteAddr, "url": r.URL}).Info("New connection")
 
 		key := strings.TrimPrefix(r.URL.String(), "/articles/")
-		key, err := url.QueryUnescape(key)
+		key, err := url.PathUnescape(key)
 		if err != nil {
 			w.Write([]byte(err.Error()))
 			return
