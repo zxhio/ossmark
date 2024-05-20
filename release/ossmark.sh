@@ -8,7 +8,7 @@ OK() { echo "[  OK  ]" "$@"; }
 install_dir="$HOME"/.ossmark
 
 uninstall() {
-    LOG "Uninstall from dir '$install_dir'"
+    LOG "Uninstall from '$install_dir'"
 
     if [ "$(systemctl list-unit-files | grep -wc ossmark)" -ne 0 ]; then
         if [ "$(systemctl is-active ossmark)" == "active" ]; then
@@ -25,7 +25,7 @@ uninstall() {
 }
 
 install() {
-    LOG "Install to dir '$install_dir'"
+    LOG "Install to '$install_dir'"
 
     uninstall
 
@@ -42,14 +42,21 @@ install() {
     systemctl enable ossmark
     systemctl start ossmark
 
+    # shellcheck disable=SC2016
+    if [ "$(grep -Fwc 'export PATH="$HOME/.ossmark/bin:$PATH"' "$HOME"/.bashrc)" -eq 0 ]; then
+        echo 'export PATH="$HOME/.ossmark/bin:$PATH' >>"$HOME"/.bashrc
+        # shellcheck source=/dev/null
+        source "$HOME"/.bashrc
+    fi
+
     OK "Install success"
 }
 
 update() {
-    LOG "Update to dir '$install_dir'"
+    LOG "Update to '$install_dir'"
 
     systemctl stop ossmark
-    cp ossmarkossmark "$install_dir"ossmark
+    cp bin/ossmark "$install_dir"/bin/ossmark
     systemctl start ossmark
 
     OK "Update success"
