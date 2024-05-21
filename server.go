@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	cryptoAESKey [32]byte
+)
+
+func init() {
+	_, err := rand.Read(cryptoAESKey[:])
+	if err != nil {
+		panic(err)
+	}
+}
+
 func serve(b *oss.Bucket) {
 	logrus.WithField("bucket", b.BucketName).Info("Start article server")
 
@@ -22,7 +34,7 @@ func serve(b *oss.Bucket) {
 		logrus.WithFields(logrus.Fields{"addr": r.RemoteAddr, "url": r.URL}).Info("New connection")
 
 		months := make(map[string]monthArticleList)
-		listObjects(b, func(obj *oss.ObjectProperties) error {
+		err := listObjects(b, func(obj *oss.ObjectProperties) error {
 			if strings.HasSuffix(obj.Key, "/") {
 				return nil
 			}
@@ -30,16 +42,26 @@ func serve(b *oss.Bucket) {
 			modifyTm := obj.LastModified.Format("2006/01/02 15:04:05")
 			month := obj.LastModified.Format("2006/01")
 
+			encryptedObjKey, err := EncryptAES_CBC([]byte(obj.Key), aesRandKey)
+			if err != nil {
+				return err
+			}
+
 			m := months[month]
 			m.Month = month
 			m.Articles = append(m.Articles, article{
-				Link:       fmt.Sprintf("%s?modify_tm=%s", path.Join("articles", obj.Key), url.QueryEscape(modifyTm)),
+				Link:       fmt.Sprintf("%s?key=%s&modify_tm=%s", path.Join("articles", path.Base(obj.Key)), url.QueryEscape(encryptedObjKey), url.QueryEscape(modifyTm)),
 				Name:       strings.TrimSuffix(path.Base(obj.Key), ".md"),
 				LastModify: modifyTm,
 			})
 			months[m.Month] = m
 			return nil
 		})
+		if err != nil {
+			fmt.Fprintf(w, "encryt error %v", err)
+			return
+		}
+
 		list := make([]monthArticleList, len(months))
 		for _, v := range months {
 			list = append(list, v)
@@ -51,14 +73,12 @@ func serve(b *oss.Bucket) {
 	http.HandleFunc("/articles/", func(w http.ResponseWriter, r *http.Request) {
 		logrus.WithFields(logrus.Fields{"addr": r.RemoteAddr, "url": r.URL}).Info("New connection")
 
-		key := strings.TrimPrefix(r.URL.String(), "/articles/")
-		key, err := url.PathUnescape(key)
+		queryKey := r.URL.Query().Get("key")
+		key, err := DecryptAES_CBC(queryKey, aesRandKey)
 		if err != nil {
-			w.Write([]byte(err.Error()))
+			fmt.Fprintf(w, "internal error")
 			return
 		}
-		s1, _, _ := strings.Cut(key, "?")
-		key = s1
 
 		reader, err := b.GetObject(key)
 		if err != nil {
