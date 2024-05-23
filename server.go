@@ -64,9 +64,10 @@ func serve(b *oss.Bucket) {
 
 		list := make([]monthArticleList, len(months))
 		for _, v := range months {
+			sort.Sort(ArticleSlice(v.Articles))
 			list = append(list, v)
 		}
-		sort.Sort(monthArticles(list))
+		sort.Sort(MonthArticleSlice(list))
 		ArticleListTmpl.Execute(w, articleListBody{MonthArticles: list})
 	})
 

@@ -79,8 +79,14 @@ type articleListBody struct {
 	MonthArticles []monthArticleList
 }
 
-type monthArticles []monthArticleList
+type MonthArticleSlice []monthArticleList
 
-func (v monthArticles) Len() int           { return len(v) }
-func (v monthArticles) Less(i, j int) bool { return v[i].Month < v[j].Month }
-func (p monthArticles) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (m MonthArticleSlice) Len() int           { return len(m) }
+func (m MonthArticleSlice) Less(i, j int) bool { return m[i].Month < m[j].Month }
+func (m MonthArticleSlice) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+
+type ArticleSlice []article
+
+func (a ArticleSlice) Len() int           { return len(a) }
+func (a ArticleSlice) Less(i, j int) bool { return a[i].LastModify > a[j].LastModify }
+func (a ArticleSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
