@@ -39,8 +39,8 @@ func serve(b *oss.Bucket) {
 				return nil
 			}
 
-			modifyTm := obj.LastModified.Format("2006/01/02 15:04:05")
-			month := obj.LastModified.Format("2006/01")
+			modifyTm := obj.LastModified.Local().Format("2006/01/02 15:04:05")
+			month := obj.LastModified.Local().Format("2006/01")
 
 			encryptedObjKey, err := EncryptAES_CBC([]byte(obj.Key), aesRandKey)
 			if err != nil {
