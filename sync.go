@@ -55,29 +55,36 @@ func syncLocal(b *oss.Bucket, workdir, mode string) error {
 			return nil
 		}
 
-		key := strings.TrimPrefix(s.Path, workdir+"/")
-		resp, err := b.GetObjectMeta(key)
-		if err != nil {
-			return err
-		}
-		etag := strings.Trim(resp.Get("Etag"), "\"")
-		modified := resp.Get("Last-Modified")
-
 		f, err := os.Open(s.Path)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 
+		key := strings.TrimPrefix(s.Path, workdir+"/")
+		l := logrus.WithField("key", key)
+
+		resp, err := b.GetObjectMeta(key)
+		if err != nil {
+			if strings.Contains(err.Error(), "NoSuchKey") {
+				l.Info("Put object to remote")
+				return b.PutObject(key, f)
+			}
+			return err
+		}
+		etag := strings.Trim(resp.Get("Etag"), "\"")
+		modified := resp.Get("Last-Modified")
+
 		sign, err := md5File(f)
 		if err != nil {
 			return err
 		}
-		logrus.WithFields(logrus.Fields{"local": sign, "remote": etag}).Debug("Check etag")
+		f.Seek(0, 0)
+
+		l.WithFields(logrus.Fields{"local": sign, "remote": etag}).Debug("Check etag")
 		if etag == sign {
 			return nil
 		}
-		f.Seek(0, 0)
 
 		timeCheck := false
 		if mode == "time" {
@@ -85,7 +92,7 @@ func syncLocal(b *oss.Bucket, workdir, mode string) error {
 			if err != nil {
 				return nil
 			}
-			logrus.WithFields(logrus.Fields{"local": formatTm(s.ModifiedTm), "remote": formatTm(modifiedTm)}).Debug("Check last modified time")
+			l.WithFields(logrus.Fields{"local": formatTm(s.ModifiedTm), "remote": formatTm(modifiedTm)}).Debug("Check last modified time")
 			if s.ModifiedTm.After(modifiedTm) {
 				return nil
 			}
@@ -93,7 +100,7 @@ func syncLocal(b *oss.Bucket, workdir, mode string) error {
 		}
 
 		if mode == "local" || timeCheck {
-			logrus.WithField("key", key).Info("Put object to remote")
+			l.Info("Put object to remote")
 			return b.PutObject(key, f)
 		}
 		return nil
@@ -114,6 +121,8 @@ func syncRemote(b *oss.Bucket, workdir, mode string) error {
 	logrus.WithFields(logrus.Fields{"work_dir": workdir, "bucket": b.BucketName, "mode": mode}).Info("Sync remote")
 
 	return listObjects(b, func(obj *oss.ObjectProperties) error {
+		l := logrus.WithField("key", obj.Key)
+
 		dir := path.Dir(obj.Key)
 		err := os.MkdirAll(path.Join(workdir, dir), 0755)
 		if err != nil {
@@ -132,7 +141,7 @@ func syncRemote(b *oss.Bucket, workdir, mode string) error {
 			return err
 		}
 		etag := strings.Trim(obj.ETag, "\"")
-		logrus.WithFields(logrus.Fields{"local": sign, "remote": etag}).Debug("Check etag")
+		l.WithFields(logrus.Fields{"local": sign, "remote": etag}).Debug("Check etag")
 		if etag == sign {
 			return nil
 		}
@@ -143,7 +152,7 @@ func syncRemote(b *oss.Bucket, workdir, mode string) error {
 			if err != nil {
 				return err
 			}
-			logrus.WithFields(logrus.Fields{"local": formatTm(st.ModTime()), "remote": formatTm(obj.LastModified)}).Debug("Check last modified time")
+			l.WithFields(logrus.Fields{"local": formatTm(st.ModTime()), "remote": formatTm(obj.LastModified)}).Debug("Check last modified time")
 			if st.ModTime().Before(obj.LastModified) {
 				return nil
 			}
@@ -151,7 +160,7 @@ func syncRemote(b *oss.Bucket, workdir, mode string) error {
 		}
 
 		if mode == "remote" || timeCheck {
-			logrus.WithFields(logrus.Fields{"key": obj.Key, "etag": etag, "last_modified": obj.LastModified}).Info("Get object from remote")
+			l.WithFields(logrus.Fields{"key": obj.Key, "etag": etag, "last_modified": obj.LastModified}).Info("Get object from remote")
 			return b.GetObjectToFile(obj.Key, name)
 		}
 		return nil
