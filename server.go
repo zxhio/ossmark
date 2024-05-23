@@ -109,10 +109,10 @@ func serve(b *oss.Bucket) {
 		}
 	})
 
-	if Conf.ListenPort == 0 {
-		Conf.ListenPort = 9991
+	if ossmarkConf.ListenPort == 0 {
+		ossmarkConf.ListenPort = 9991
 	}
-	l, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", Conf.ListenPort))
+	l, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", ossmarkConf.ListenPort))
 	if err != nil {
 		logrus.WithError(err).Fatal("Fatal to net.Listen")
 	}

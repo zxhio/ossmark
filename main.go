@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/natefinch/lumberjack"
@@ -25,7 +27,11 @@ type Config struct {
 }
 
 var (
-	Conf Config
+	ossmarkConf Config
+)
+
+const (
+	ossDefaultRegion = "oss-cn-hangzhou"
 )
 
 func readAndParseConfig(confPath string) error {
@@ -33,7 +39,7 @@ func readAndParseConfig(confPath string) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(content, &Conf)
+	return json.Unmarshal(content, &ossmarkConf)
 }
 
 type syncFlag struct {
@@ -64,13 +70,13 @@ func main() {
 	}
 	logrus.SetLevel(logrus.DebugLevel)
 
-	b, err := newBucket(&Conf.AccessKey, Conf.BucketName, "oss-cn-hangzhou")
+	b, err := newBucket(&ossmarkConf.AccessKey, ossmarkConf.BucketName, ossDefaultRegion)
 	if err != nil {
 		logrus.WithError(err).Fatal("Fatal to new bucket client")
 	}
 
 	if sf.set {
-		err = sync(b, Conf.WorkDir, sf.value)
+		err = sync(b, ossmarkConf.WorkDir, sf.value)
 		if err != nil {
 			logrus.WithError(err).Fatal("Fatal to sync bucket")
 		}
@@ -116,6 +122,19 @@ func listObjects(b *oss.Bucket, handler ObjectHandler) error {
 }
 
 func newBucket(ak *AccessKey, bucketName, location string) (*oss.Bucket, error) {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s-internal.aliyuncs.com:443", location), time.Second)
+	if err != nil {
+		logrus.Info("Access by public network")
+		return newBucketWithPublic(ak, bucketName, location)
+	}
+	defer conn.Close()
+
+	logrus.Info("Access by intranet")
+	return newBucketWithIntranet(ak, bucketName, location)
+}
+
+// 外网访问
+func newBucketWithPublic(ak *AccessKey, bucketName, location string) (*oss.Bucket, error) {
 	client, err := oss.New(fmt.Sprintf("%s.aliyuncs.com", location), ak.Id, ak.Secret)
 	if err != nil {
 		return nil, err
@@ -123,10 +142,11 @@ func newBucket(ak *AccessKey, bucketName, location string) (*oss.Bucket, error) 
 	return client.Bucket(bucketName)
 }
 
-// func newBucketWithIntranet(ak *AccessKey, bucketName, location string) (*oss.Bucket, error) {
-// 	client, err := oss.New(fmt.Sprintf("%s-internal.aliyuncs.com", location), ak.Id, ak.Secret)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return client.Bucket(bucketName)
-// }
+// 内网访问
+func newBucketWithIntranet(ak *AccessKey, bucketName, location string) (*oss.Bucket, error) {
+	client, err := oss.New(fmt.Sprintf("%s-internal.aliyuncs.com", location), ak.Id, ak.Secret)
+	if err != nil {
+		return nil, err
+	}
+	return client.Bucket(bucketName)
+}
