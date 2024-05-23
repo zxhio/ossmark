@@ -44,7 +44,7 @@ install() {
 
     # shellcheck disable=SC2016
     if [ "$(grep -Fwc 'export PATH="$HOME/.ossmark/bin:$PATH"' "$HOME"/.bashrc)" -eq 0 ]; then
-        echo 'export PATH="$HOME/.ossmark/bin:$PATH' >>"$HOME"/.bashrc
+        echo 'export PATH="$HOME/.ossmark/bin:$PATH"' >>"$HOME"/.bashrc
         # shellcheck source=/dev/null
         source "$HOME"/.bashrc
     fi
