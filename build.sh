@@ -9,7 +9,8 @@ build_os_arch() {
     echo "+build ossmark $os/$arch"
 
     rm -rf ossmark && cp -r release ossmark && mkdir -p ossmark/bin
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-w -s" -o ossmark/bin/ossmark
+    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -ldflags "-w -s" -o ossmark/bin/ossmark-article cmd/ossmark-article/main.go
+    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -ldflags "-w -s" -o ossmark/bin/ossmark-sync cmd/ossmark-sync/main.go
     tar -czf ossmark."$os"-"$arch".tar.gz ossmark && rm -rf ossmark
 }
 

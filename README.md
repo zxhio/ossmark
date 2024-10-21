@@ -2,54 +2,67 @@
 
 ## usage
 
-### auth
-Binary **ossmark** show move to */usr/local/bin*
-```bash
-mv ossmark /usr/local/bin/ossmark
+Binary **ossmark-\*** show move to */usr/local/bin/*
+```shell
+$ mv ossmark /usr/local/bin/ossmark
 ```
 
-The default configuration file for Osmark is **/etc/ossmark.json** .
+### bucket config
+Command flags `--access_key_id`, `--access_key_secret`, `--bucket_name` and `--bucket_location` are used to specify the basic config of the bucket.
 
-Here are some necessary configuration fields.
+Alternatively, you can use `--config` to specify the configuration file path.
 ```json
 {
-    "access_key_id": "<your ak>",
-    "access_key_secret": "<your sk>",
-    "bucket_name": "<your bucket name>",
+    "access_key_id": "<your access_key_id>",
+    "access_key_secret": "<your access_key_secret>",
+    "bucket_name": "<your bucket_name>",
+    "bucket_location": "<your bucket_location>"
 }
+```
+
+```shell
+$ ossmark-* ./ossmark-sync --access_key_id <access_key_id>  --access_key_secret <access_key_secret>  --bucket_name <bucket_name> --bucket_location <bucket_location>
+
+$ ossmark-* --config config.json
 ```
 
 ### sync
-Work dir for sync tool.
-```json
-{
-    "work_dir": "~/.ossmark",
-}
-```
+Use `--work_dir` flag to specify the working directory, where the synchronized files are stored.
 
-Add `--sync` flag for command tool, content check mode is
+Use `--mode` flag to specify sync mode
 - `time` default, base on modified time.
 - `local` directly using local file cover oss.
 - `remote` directly using oss cover local file.
 
-```bash
-./ossmark --conf <dir>/ossmark.json --sync [mode]
+```shell
+$ ossmark-sync --config <dir>/config.json --mode [mode] --work_dir=./ossdata
 ```
 
-### article server
-Optional listen port for server.
+Similarly, you can use configuration files to replace command-line flags.
 ```json
 {
-    "listen_port": 9991,
+    "work_dir": "<your work_dir>",
+    "mode": "<your mode>"
 }
 ```
 
-In order for **ossmark** to run continuously, a file called *ossmark.service* is provided, and you can execute the following commands
+### article server
+Use `--listen_port` flag to specify the server listen port.
+
+Similarly, you can use configuration files to replace command-line flags.
+```json
+{
+    "listen_port": 9346,
+    "log_path": "<your log_path>"
+}
+```
+
+In order for **ossmark-article** to run continuously, a file called *ossmark-article.service* is provided, and you can execute the following commands
 ```bash
-mv ossmark.service /lib/systemd/system/ossmark.service
+mv ossmark-article.service /lib/systemd/system/ossmark-article.service
 systemctl daemon-reload
-systemctl enable ossmark
-systemctl start ossmark
+systemctl enable ossmark-article
+systemctl start ossmark-article
 ```
 
 ## TODO

@@ -1,4 +1,4 @@
-package main
+package bucketsync
 
 import (
 	"crypto/md5"
@@ -11,7 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"ossmark/internal/config"
+	"ossmark/pkg/bucketutil"
+
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,11 +25,13 @@ type fileStat struct {
 	ModifiedTm time.Time
 }
 
-func sync(b *oss.Bucket, dir, mode string) error {
-	var (
-		workdir string
-		err     error
-	)
+func Sync(conf *config.BucketConfig, dir, mode string) error {
+	b, err := bucketutil.NewBucket(&bucketutil.AccessKey{Id: conf.AccessKeyId, Secret: conf.AcessKeySecret}, conf.BucketName, conf.BucketLocation)
+	if err != nil {
+		return errors.Wrap(err, "NewBucket")
+	}
+
+	var workdir string
 	if dir == "" {
 		workdir, err = os.UserHomeDir()
 		if err != nil {
@@ -120,7 +126,7 @@ func syncLocal(b *oss.Bucket, workdir, mode string) error {
 func syncRemote(b *oss.Bucket, workdir, mode string) error {
 	logrus.WithFields(logrus.Fields{"work_dir": workdir, "bucket": b.BucketName, "mode": mode}).Info("Sync remote")
 
-	return listObjects(b, func(obj *oss.ObjectProperties) error {
+	return bucketutil.ListObjectsWithHandler(b, func(obj *oss.ObjectProperties) error {
 		l := logrus.WithField("key", obj.Key)
 
 		dir := path.Dir(obj.Key)

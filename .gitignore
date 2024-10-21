@@ -1,3 +1,7 @@
+cmd/ossmark-article/ossmark-article
+cmd/ossmark-image/ossmark-image
+cmd/ossmark-sync/ossmark-sync
+
 ossmark
 ossmark.json
 ossmark*.tar.gz

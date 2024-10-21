@@ -1,10 +1,10 @@
 [Unit]
-Description=ossmark
+Description=ossmark-article
 
 [Service]
 Type=simple
 WorkingDirectory=TODO_OSSMARK_DIR
-ExecStart=TODO_OSSMARK_DIR/bin/ossmark --article
+ExecStart=TODO_OSSMARK_DIR/bin/ossmark-article --config conf/ossmark.json
 User=TODO_OSSMARK_USER
 Group=TODO_OSSMARK_GROUP
 Restart=always

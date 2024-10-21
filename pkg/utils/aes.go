@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"bytes"
@@ -8,11 +8,11 @@ import (
 	"encoding/base64"
 )
 
-var aesRandKey []byte
+var RandAESKey []byte
 
 func init() {
-	aesRandKey = make([]byte, 16)
-	_, err := rand.Read(aesRandKey[:])
+	RandAESKey = make([]byte, 16)
+	_, err := rand.Read(RandAESKey[:])
 	if err != nil {
 		panic(err)
 	}

@@ -10,15 +10,15 @@ install_dir="$HOME"/.ossmark
 uninstall() {
     LOG "Uninstall from '$install_dir'"
 
-    if [ "$(systemctl list-unit-files | grep -wc ossmark)" -ne 0 ]; then
-        if [ "$(systemctl is-active ossmark)" == "active" ]; then
-            systemctl stop ossmark
+    if [ "$(systemctl list-unit-files | grep -wc ossmark-article)" -ne 0 ]; then
+        if [ "$(systemctl is-active ossmark-article)" == "active" ]; then
+            systemctl stop ossmark-article
         fi
-        systemctl disable ossmark
+        systemctl disable ossmark-article
         systemctl daemon-reload
     fi
 
-    rm -f /usr/lib/systemd/system/ossmark.service
+    rm -f /usr/lib/systemd/system/ossmark-article.service
     rm -rf "$install_dir"
 
     OK "Uninstall success"
@@ -34,13 +34,13 @@ install() {
 
     mkdir -p "$install_dir"
     cp -r {bin,conf} "$install_dir"
-    cp service/ossmark.service /usr/lib/systemd/system/ossmark.service
-    sed -i "s@TODO_OSSMARK_DIR@$install_dir@" /usr/lib/systemd/system/ossmark.service
-    sed -i "s@TODO_OSSMARK_USER@$user@" /usr/lib/systemd/system/ossmark.service
-    sed -i "s@TODO_OSSMARK_GROUP@$group@" /usr/lib/systemd/system/ossmark.service
+    cp service/ossmark-article.service /usr/lib/systemd/system/ossmark-article.service
+    sed -i "s@TODO_OSSMARK_DIR@$install_dir@" /usr/lib/systemd/system/ossmark-article.service
+    sed -i "s@TODO_OSSMARK_USER@$user@" /usr/lib/systemd/system/ossmark-article.service
+    sed -i "s@TODO_OSSMARK_GROUP@$group@" /usr/lib/systemd/system/ossmark-article.service
     systemctl daemon-reload
-    systemctl enable ossmark
-    systemctl start ossmark
+    systemctl enable ossmark-article
+    systemctl start ossmark-article
 
     # shellcheck disable=SC2016
     if [ "$(grep -Fwc 'export PATH="$HOME/.ossmark/bin:$PATH"' "$HOME"/.bashrc)" -eq 0 ]; then
@@ -55,9 +55,13 @@ install() {
 update() {
     LOG "Update to '$install_dir'"
 
-    systemctl stop ossmark
-    cp bin/ossmark "$install_dir"/bin/ossmark
-    systemctl start ossmark
+    LOG "Update binaries"
+    cp bin/ossmark-sync "$install_dir"/bin/ossmark-sync
+
+    LOG "Update service"
+    systemctl stop ossmark-article
+    cp bin/ossmark-article "$install_dir"/bin/ossmark-article
+    systemctl start ossmark-article
 
     OK "Update success"
 }
