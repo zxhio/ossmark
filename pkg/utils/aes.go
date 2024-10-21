@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 )
 
 var RandAESKey []byte
@@ -18,29 +19,17 @@ func init() {
 	}
 }
 
-// PKCS7Padding adds padding to the input data according to the PKCS7 scheme.
-func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
-	padding := blockSize - len(ciphertext)%blockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(ciphertext, padtext...)
-}
-
-// PKCS7UnPadding removes the padding from the input data that was added by PKCS7Padding.
-func PKCS7UnPadding(origData []byte) []byte {
-	length := len(origData)
-	unpadding := int(origData[length-1])
-	return origData[:length-unpadding]
-}
-
 // EncryptAES_CBC encrypts the plaintext using AES in CBC mode.
-func EncryptAES_CBC(plaintext, key []byte) (string, error) {
+func EncryptAES_CBC(plainText, key []byte) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
 
 	// Padding the plaintext before encryption.
-	plaintext = PKCS7Padding(plaintext, block.BlockSize())
+	padding := aes.BlockSize - len(plainText)%aes.BlockSize
+	padText := append(plainText, bytes.Repeat([]byte{byte(padding)}, padding)...)
+	cipherText := make([]byte, len(padText))
 
 	// Generate an initialization vector (IV) for CBC mode, same size as the block size.
 	iv := make([]byte, aes.BlockSize)
@@ -50,37 +39,41 @@ func EncryptAES_CBC(plaintext, key []byte) (string, error) {
 
 	// Initialize the CBC encryption mode with the key and IV.
 	mode := cipher.NewCBCEncrypter(block, iv)
-	ciphertext := make([]byte, len(plaintext))
 	// Perform the encryption.
-	mode.CryptBlocks(ciphertext, plaintext)
+	mode.CryptBlocks(cipherText, padText)
 
 	// Combine the IV and ciphertext, usually needed for decryption.
-	ivCiphertext := append(iv, ciphertext...)
+	ivCipherText := append(iv, cipherText...)
 
 	// Encode the result in Base64 for easier transmission or storage.
-	return base64.StdEncoding.EncodeToString(ivCiphertext), nil
+	return base64.StdEncoding.EncodeToString(ivCipherText), nil
 }
 
-// DecryptAES_CBC decrypts the ciphertext previously encrypted with EncryptAES_CBC.
-func DecryptAES_CBC(ciphertextBase64 string, key []byte) (string, error) {
-	ciphertext, err := base64.StdEncoding.DecodeString(ciphertextBase64)
+func DecryptAES_CBC(cipherTextBase64 string, key []byte) (string, error) {
+	cipherText, err := base64.StdEncoding.DecodeString(cipherTextBase64)
 	if err != nil {
 		return "", err
 	}
-	// Separate the IV from the ciphertext.
-	iv := ciphertext[:aes.BlockSize]
-	ciphertext = ciphertext[aes.BlockSize:]
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
-	mode := cipher.NewCBCDecrypter(block, iv)
-	plaintext := make([]byte, len(ciphertext))
+
+	// Separate the IV from the ciphertext.
+	iv := cipherText[:aes.BlockSize]
+	cipherText = cipherText[aes.BlockSize:]
+	plainText := make([]byte, len(cipherText))
+
 	// Decrypt the data.
-	mode.CryptBlocks(plaintext, ciphertext)
+	mode := cipher.NewCBCDecrypter(block, iv)
+	mode.CryptBlocks(plainText, cipherText)
 
 	// Remove the padding and convert to string.
-	plaintext = PKCS7UnPadding(plaintext)
-	return string(plaintext), nil
+	padding := plainText[len(plainText)-1]
+	if int(padding) > len(plainText) || int(padding) > aes.BlockSize {
+		return "", fmt.Errorf("invalid padding")
+	}
+	plainText = plainText[:len(plainText)-int(padding)]
+	return string(plainText), nil
 }
