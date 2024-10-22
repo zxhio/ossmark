@@ -1,11 +1,12 @@
 # ossmark
 
+Ossmark contains the following components internally:
+- **ossmark-sync**, oss bucket sync tool
+- **ossmark-article**, provides HTTP service for displaying markdown files in oss.
+
 ## usage
 
-Binary **ossmark-\*** show move to */usr/local/bin/*
-```shell
-$ mv ossmark /usr/local/bin/ossmark
-```
+Before install, you should edit *ossmark/conf/ossmark.json* for config, then run `bash ossmark.sh install` .
 
 ### bucket config
 Command flags `--access_key_id`, `--access_key_secret`, `--bucket_name` and `--bucket_location` are used to specify the basic config of the bucket.
@@ -21,12 +22,12 @@ Alternatively, you can use `--config` to specify the configuration file path.
 ```
 
 ```shell
-$ ossmark-* ./ossmark-sync --access_key_id <access_key_id>  --access_key_secret <access_key_secret>  --bucket_name <bucket_name> --bucket_location <bucket_location>
+$ ossmark-* --access_key_id <access_key_id> --access_key_secret <access_key_secret> --bucket_name <bucket_name> --bucket_location <bucket_location>
 
-$ ossmark-* --config config.json
+$ ossmark-* --config ossmark.json
 ```
 
-### sync
+### ossmark-sync
 Use `--work_dir` flag to specify the working directory, where the synchronized files are stored.
 
 Use `--mode` flag to specify sync mode
@@ -35,10 +36,10 @@ Use `--mode` flag to specify sync mode
 - `remote` directly using oss cover local file.
 
 ```shell
-$ ossmark-sync --config <dir>/config.json --mode [mode] --work_dir=./ossdata
+$ ossmark-sync --config ossmark.json --mode <mode> --work_dir=<work_dir>
 ```
 
-Similarly, you can use configuration files to replace command-line flags.
+Alternatively, you can add these fields to the configuration file instead of command-line flags.
 ```json
 {
     "work_dir": "<your work_dir>",
@@ -46,10 +47,10 @@ Similarly, you can use configuration files to replace command-line flags.
 }
 ```
 
-### article server
+### ossmark-article
 Use `--listen_port` flag to specify the server listen port.
 
-Similarly, you can use configuration files to replace command-line flags.
+Similarly, you can add these fields to the configuration file instead of command-line flags.
 ```json
 {
     "listen_port": 9346,
@@ -57,13 +58,5 @@ Similarly, you can use configuration files to replace command-line flags.
 }
 ```
 
-In order for **ossmark-article** to run continuously, a file called *ossmark-article.service* is provided, and you can execute the following commands
-```bash
-mv ossmark-article.service /lib/systemd/system/ossmark-article.service
-systemctl daemon-reload
-systemctl enable ossmark-article
-systemctl start ossmark-article
-```
-
 ## TODO
-- Provide completed installation package for **ossmark**.
+- Add **ossmark-image** to show a thumbnail of oss.
